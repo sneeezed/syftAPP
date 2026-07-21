@@ -5,6 +5,17 @@
 
 import { Platform } from 'react-native';
 
+/**
+ * Syft brand palette (from the design's color palette).
+ */
+export const Syft = {
+  darkOlive: '#596e04', // Recent Activity card background
+  brown: '#3a3217', // Headings, welcome text, progress fill
+  lime: '#a0b840', // Fullness card, icon circles, avatar
+  white: '#ffffff',
+  offWhite: '#e9e9e9', // bottom bar
+};
+
 const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
 
