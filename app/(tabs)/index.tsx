@@ -51,7 +51,6 @@ export default function HomeScreen() {
 function UnpairedHome() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setPaired } = usePairing();
   const intro = useIntro('home-unpaired');
 
   return (
@@ -85,7 +84,7 @@ function UnpairedHome() {
               Connect your Syft trashcan to start sorting waste automatically.
             </EntryText>
             <EntryView intro={intro} entering={enter(2)} style={styles.unpairedButtonWrap}>
-              <PressableScale style={styles.pairButton} onPress={() => setPaired(true)}>
+              <PressableScale style={styles.pairButton} onPress={() => router.push('/pair')}>
                 <Ionicons name="add-circle-outline" size={22} color={Syft.white} />
                 <Text style={styles.pairButtonText}>Pair with Trashcan</Text>
               </PressableScale>

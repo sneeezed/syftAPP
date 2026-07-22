@@ -11,6 +11,7 @@ import { enter } from '@/constants/motion';
 import { Syft } from '@/constants/theme';
 import { useIntro } from '@/hooks/use-intro';
 import { usePairing } from '@/hooks/use-pairing';
+import { useSyft } from '@/hooks/use-syft';
 
 type LinkRow = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -30,6 +31,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const intro = useIntro('settings');
   const { paired, setPaired } = usePairing();
+  const { location } = useSyft();
   const [toast, setToast] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [metricUnits, setMetricUnits] = useState(true);
@@ -37,11 +39,16 @@ export default function SettingsScreen() {
   const accountRows: LinkRow[] = [
     { icon: 'person-outline', label: 'Edit Profile', route: '/profile' },
     { icon: 'time-outline', label: 'Recycling History', route: '/history' },
+    {
+      icon: 'location-outline',
+      label: location ? `Location: ${location.split(',')[0]}` : 'Set recycling location',
+      route: '/pair',
+    },
     { icon: 'star-outline', label: 'Manage Subscription', soon: true },
     {
       icon: 'add-circle-outline',
-      label: paired ? 'Pair a new trashcan' : 'Pair a Trashcan',
-      soon: true,
+      label: paired ? 'Set up / re-pair trashcan' : 'Pair a Trashcan',
+      route: '/pair',
     },
   ];
 
