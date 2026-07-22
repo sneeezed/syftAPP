@@ -1,29 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import {
-  Inter_400Regular,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  useFonts,
-} from '@expo-google-fonts/inter';
-import { PlayfairDisplay_600SemiBold_Italic } from '@expo-google-fonts/playfair-display';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  Easing,
-  FadeIn,
-  FadeInDown,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withTiming,
-} from 'react-native-reanimated';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EntryText, EntryView } from '@/components/animated-entry';
+import { PressableScale } from '@/components/pressable-scale';
+import { enter, pop } from '@/constants/motion';
 import { Syft } from '@/constants/theme';
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+import { useIntro } from '@/hooks/use-intro';
+import { usePairing } from '@/hooks/use-pairing';
 
 const backgroundImage = require('@/assets/images/background.png');
 const leafIcon = require('@/assets/images/leaf.png');
@@ -31,60 +17,47 @@ const achievementIcon = require('@/assets/images/achievement.png');
 const trashcanIcon = require('@/assets/images/trashcan.png');
 
 // Mock data — swapped for real trashcan data later.
-const fullnessPercent = 58;
+const userName = 'Hannah';
+
+const stats = {
+  itemsSorted: 240,
+};
 
 const activity = [
   {
     icon: leafIcon,
     title: 'Can Recycled',
-    subtitle: 'Open to see recent sorted Items - 5 min ago',
+    subtitle: 'Aluminum can — 5 min ago',
   },
   {
     icon: achievementIcon,
     title: 'Achievement Unlocked',
-    subtitle: 'Saved 100lbs - Yesterday 10:01 AM',
+    subtitle: 'Saved 100 lbs — Yesterday 10:01 AM',
   },
   {
     icon: trashcanIcon,
-    title: 'Waste Emptied',
-    subtitle: 'Wednesday 8:20 PM',
+    title: 'Waste Sorted',
+    subtitle: 'Food wrapper → Trash — Yesterday 9:14 AM',
   },
 ];
 
 export default function HomeScreen() {
+  const { paired } = usePairing();
+  return paired ? <PairedHome /> : <UnpairedHome />;
+}
+
+// Shown until the user pairs a Syft trashcan. Reuses the forest header + arched
+// sheet so it feels like the same Home, with a single call to action.
+function UnpairedHome() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [fontsLoaded] = useFonts({
-    PlayfairDisplay_600SemiBold_Italic,
-    Inter_400Regular,
-    Inter_600SemiBold,
-    Inter_700Bold,
-  });
-
-  const progress = useSharedValue(0);
-  const progressStyle = useAnimatedStyle(() => ({ width: `${progress.value}%` }));
-
-  useEffect(() => {
-    if (fontsLoaded) {
-      progress.value = withDelay(
-        300,
-        withTiming(fullnessPercent, { duration: 1200, easing: Easing.out(Easing.cubic) }),
-      );
-    }
-  }, [fontsLoaded, progress]);
-
-  if (!fontsLoaded) {
-    return <View style={styles.outer} />;
-  }
+  const { setPaired } = usePairing();
+  const intro = useIntro('home-unpaired');
 
   return (
     <View style={styles.outer}>
       <View style={styles.root}>
-        <ScrollView
-        style={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}>
-        {/* Forest header with hamburger menu */}
+        {/* Forest header */}
         <View style={styles.header}>
           <Image
             source={backgroundImage}
@@ -92,77 +65,116 @@ export default function HomeScreen() {
             contentFit="cover"
             contentPosition="top"
           />
-          <Pressable
-            style={[styles.menuButton, { top: insets.top + 8 }]}
+          <PressableScale
+            style={[styles.settingsButton, { top: insets.top + 8 }]}
             hitSlop={12}
-            onPress={() => router.push('/menu')}>
-            <Ionicons name="menu" size={34} color={Syft.white} />
-          </Pressable>
+            onPress={() => router.push('/settings')}>
+            <Ionicons name="settings-sharp" size={28} color={Syft.white} />
+          </PressableScale>
         </View>
 
-        {/* White arched sheet that holds the rest of the screen */}
         <View style={styles.sheet}>
-          {/* Avatar straddling the forest and the sheet — tap to edit profile */}
-          <View style={styles.avatarWrap}>
-            <Pressable onPress={() => router.push('/profile')}>
-              <View style={styles.avatar} />
-            </Pressable>
-          </View>
-
-          {/* Equal spacers above and below center the welcome text in the white area */}
-          <View style={styles.spacer} />
-
-          <Animated.Text entering={FadeIn.duration(800)} style={styles.welcome}>
-            Welcome Back Hannah!
-          </Animated.Text>
-
-          <View style={styles.spacer} />
-
-          {/* Fill status */}
-          <Animated.Text entering={FadeInDown.duration(500).delay(100)} style={styles.sectionTitle}>
-            Fill Status
-          </Animated.Text>
-          <Animated.View entering={FadeInDown.duration(500).delay(150)} style={styles.fullnessCard}>
-            <View style={styles.fullnessTopRow}>
-              <Ionicons name="trash-outline" size={34} color={Syft.white} />
-              <Text style={styles.fullnessPercent}>{fullnessPercent}% Full</Text>
-            </View>
-            <View style={styles.progressTrack}>
-              <Animated.View style={[styles.progressFill, progressStyle]} />
-            </View>
-          </Animated.View>
-
-          {/* Recent Activity */}
-          <Animated.Text entering={FadeInDown.duration(500).delay(250)} style={styles.sectionTitle}>
-            Recent Activity
-          </Animated.Text>
-          <View style={styles.activityCard}>
-            {activity.map((item, index) => (
-              <AnimatedPressable
-                key={item.title}
-                entering={FadeInDown.duration(450).delay(350 + index * 120)}
-                onPress={() => router.push('/history')}
-                style={[styles.activityRow, index > 0 && styles.activityRowBorder]}>
-                <View style={styles.activityIconCircle}>
-                  <Image source={item.icon} style={styles.activityIcon} contentFit="contain" />
-                </View>
-                <View style={styles.activityText}>
-                  <Text style={styles.activityTitle}>{item.title}</Text>
-                  <Text style={styles.activitySubtitle}>{item.subtitle}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={Syft.white} />
-              </AnimatedPressable>
-            ))}
+          <View style={styles.unpairedContent}>
+            <EntryView intro={intro} entering={pop(120)} style={styles.unpairedIconCircle}>
+              <Image source={trashcanIcon} style={styles.unpairedIcon} contentFit="contain" />
+            </EntryView>
+            <EntryText intro={intro} entering={enter(0)} style={styles.unpairedTitle}>
+              Pair your Syft
+            </EntryText>
+            <EntryText intro={intro} entering={enter(1)} style={styles.unpairedSubtitle}>
+              Connect your Syft trashcan to start sorting waste automatically.
+            </EntryText>
+            <EntryView intro={intro} entering={enter(2)} style={styles.unpairedButtonWrap}>
+              <PressableScale style={styles.pairButton} onPress={() => setPaired(true)}>
+                <Ionicons name="add-circle-outline" size={22} color={Syft.white} />
+                <Text style={styles.pairButtonText}>Pair with Trashcan</Text>
+              </PressableScale>
+            </EntryView>
           </View>
         </View>
-      </ScrollView>
+      </View>
+    </View>
+  );
+}
 
-        {/* Bottom bar with settings gear */}
-        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 10 }]}>
-          <Pressable hitSlop={12} onPress={() => router.push('/settings')}>
-            <Ionicons name="settings-sharp" size={30} color={Syft.lime} />
-          </Pressable>
-        </View>
+function PairedHome() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  // Play the entrance cascade only on the first open after a cold launch — not
+  // every time we return to Home (e.g. dismissing the menu that sits over it).
+  const intro = useIntro('home');
+
+  const initial = (userName.trim()[0] ?? 'S').toUpperCase();
+
+  return (
+    <View style={styles.outer}>
+      <View style={styles.root}>
+        <ScrollView
+          style={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 32 }]}>
+          {/* Forest header with settings (top-right) */}
+          <View style={styles.header}>
+            <Image
+              source={backgroundImage}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              contentPosition="top"
+            />
+            <PressableScale
+              style={[styles.settingsButton, { top: insets.top + 8 }]}
+              hitSlop={12}
+              onPress={() => router.push('/settings')}>
+              <Ionicons name="settings-sharp" size={28} color={Syft.white} />
+            </PressableScale>
+          </View>
+
+          {/* White arched sheet that holds the rest of the screen */}
+          <View style={styles.sheet}>
+            {/* Monogram avatar straddling the forest and the sheet — tap to edit profile */}
+            <View style={styles.avatarWrap}>
+              <PressableScale onPress={() => router.push('/profile')}>
+                <EntryView intro={intro} entering={pop(120)} style={styles.avatar}>
+                  <Text style={styles.avatarInitial}>{initial}</Text>
+                </EntryView>
+              </PressableScale>
+            </View>
+
+            <EntryText intro={intro} entering={enter(0)} style={styles.welcome}>
+              Welcome Back {userName}!
+            </EntryText>
+
+            {/* Hero stat — items sorted this month */}
+            <EntryView intro={intro} entering={enter(1)} style={styles.heroCard}>
+              <Text style={styles.heroNumber}>{stats.itemsSorted}</Text>
+              <Text style={styles.heroLabel}>items sorted for you this month</Text>
+            </EntryView>
+
+            {/* Recently Sorted */}
+            <EntryText intro={intro} entering={enter(2)} style={styles.sectionTitle}>
+              Recently Sorted
+            </EntryText>
+            <View style={styles.activityCard}>
+              {activity.map((item, index) => (
+                <EntryView key={item.title} intro={intro} entering={enter(3 + index)}>
+                  <PressableScale
+                    onPress={() => router.push('/history')}
+                    style={[styles.activityRow, index > 0 && styles.activityRowBorder]}>
+                    <View style={styles.activityIconCircle}>
+                      <Image source={item.icon} style={styles.activityIcon} contentFit="contain" />
+                    </View>
+                    <View style={styles.activityText}>
+                      <Text style={styles.activityTitle}>{item.title}</Text>
+                      <Text style={styles.activitySubtitle}>{item.subtitle}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={Syft.white} />
+                  </PressableScale>
+                </EntryView>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
       </View>
     </View>
   );
@@ -190,14 +202,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 75,
   },
   header: {
     height: 260,
   },
-  menuButton: {
+  settingsButton: {
     position: 'absolute',
-    left: 20,
+    right: 20,
   },
   sheet: {
     flex: 1,
@@ -208,10 +219,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: AVATAR_SIZE / 2 + 12,
     minHeight: 500,
-  },
-  spacer: {
-    flex: 1,
-    minHeight: 12,
   },
   avatarWrap: {
     position: 'absolute',
@@ -227,40 +234,40 @@ const styles = StyleSheet.create({
     backgroundColor: Syft.lime,
     borderWidth: 8,
     borderColor: Syft.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 64,
+    color: Syft.white,
   },
   welcome: {
     fontSize: 28,
     color: Syft.brown,
     textAlign: 'center',
     fontFamily: 'PlayfairDisplay_600SemiBold_Italic',
-  },
-  fullnessCard: {
-    backgroundColor: Syft.lime,
-    borderRadius: 18,
-    padding: 16,
     marginBottom: 20,
   },
-  fullnessTopRow: {
-    flexDirection: 'row',
+  heroCard: {
+    backgroundColor: Syft.lime,
+    borderRadius: 22,
+    paddingVertical: 26,
+    paddingHorizontal: 20,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  fullnessPercent: {
-    fontSize: 22,
-    color: Syft.white,
+  heroNumber: {
     fontFamily: 'Inter_700Bold',
+    fontSize: 56,
+    color: Syft.white,
+    lineHeight: 60,
   },
-  progressTrack: {
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: Syft.white,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 6,
-    backgroundColor: Syft.brown,
+  heroLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 15,
+    color: Syft.white,
+    marginTop: 2,
   },
   sectionTitle: {
     fontSize: 18,
@@ -310,14 +317,60 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     lineHeight: 16,
   },
-  bottomBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: Syft.offWhite,
-    paddingTop: 12,
-    paddingHorizontal: 26,
-    alignItems: 'flex-end',
+  // Unpaired empty state
+  unpairedContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingBottom: 60,
+  },
+  unpairedIconCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: Syft.lime,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  unpairedIcon: {
+    width: 64,
+    height: 64,
+  },
+  unpairedTitle: {
+    fontSize: 26,
+    color: Syft.brown,
+    textAlign: 'center',
+    fontFamily: 'PlayfairDisplay_600SemiBold_Italic',
+    marginBottom: 10,
+  },
+  unpairedSubtitle: {
+    fontSize: 15,
+    color: '#8a8f7a',
+    textAlign: 'center',
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 22,
+    marginBottom: 28,
+    paddingHorizontal: 12,
+  },
+  unpairedButtonWrap: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  pairButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: Syft.darkOlive,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 28,
+  },
+  pairButtonText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 16,
+    color: Syft.white,
   },
 });

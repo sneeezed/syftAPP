@@ -1,26 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import {
-  Inter_400Regular,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  useFonts,
-} from '@expo-google-fonts/inter';
-import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EntryView } from '@/components/animated-entry';
+import { PressableScale } from '@/components/pressable-scale';
+import { enter, pop } from '@/constants/motion';
 import { Syft } from '@/constants/theme';
+import { useIntro } from '@/hooks/use-intro';
 
 // Mock profile data — replaced with real account data later.
 const INITIAL = {
@@ -39,11 +27,10 @@ type NotificationKey = (typeof NOTIFICATIONS)[number]['key'];
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
+  const intro = useIntro('profile');
 
   const [name, setName] = useState(INITIAL.name);
   const [email, setEmail] = useState(INITIAL.email);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Record<NotificationKey, boolean>>({
     binFull: true,
     sortErrors: true,
@@ -51,17 +38,7 @@ export default function ProfileScreen() {
   });
   const [saved, setSaved] = useState(false);
 
-  const pickPhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-    if (!result.canceled) {
-      setPhotoUri(result.assets[0].uri);
-    }
-  };
+  const initial = (name.trim()[0] ?? 'S').toUpperCase();
 
   const toggle = (key: NotificationKey) =>
     setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -72,35 +49,24 @@ export default function ProfileScreen() {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  if (!fontsLoaded) {
-    return <View style={styles.outer} />;
-  }
-
   return (
     <View style={styles.outer}>
       <View style={styles.root}>
         {/* Green header */}
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-          <Pressable
+          <PressableScale
             style={[styles.backButton, { top: insets.top + 10 }]}
             hitSlop={12}
             onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={26} color={Syft.white} />
-          </Pressable>
+          </PressableScale>
           <Text style={styles.headerTitle}>Profile</Text>
 
-          <View style={styles.avatarWrap}>
-            {photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.avatar} contentFit="cover" />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Ionicons name="person" size={54} color={Syft.white} />
-              </View>
-            )}
-            <Pressable style={styles.cameraBadge} hitSlop={8} onPress={pickPhoto}>
-              <Ionicons name="camera" size={18} color={Syft.white} />
-            </Pressable>
-          </View>
+          <EntryView intro={intro} entering={pop(150)} style={styles.avatarWrap}>
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <Text style={styles.avatarInitial}>{initial}</Text>
+            </View>
+          </EntryView>
         </View>
 
         <ScrollView
@@ -109,54 +75,60 @@ export default function ProfileScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           {/* Name */}
-          <Text style={styles.label}>Name</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Your name"
-            placeholderTextColor="#9aa08a"
-          />
+          <EntryView intro={intro} entering={enter(0)}>
+            <Text style={styles.label}>Name</Text>
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="Your name"
+              placeholderTextColor="#9aa08a"
+            />
+          </EntryView>
 
           {/* Email */}
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@example.com"
-            placeholderTextColor="#9aa08a"
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+          <EntryView intro={intro} entering={enter(1)}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              placeholderTextColor="#9aa08a"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </EntryView>
 
           {/* Notifications */}
-          <Text style={styles.sectionTitle}>Notifications</Text>
-          <View style={styles.notifCard}>
-            {NOTIFICATIONS.map((item, index) => (
-              <View
-                key={item.key}
-                style={[styles.notifRow, index > 0 && styles.notifRowBorder]}>
-                <View style={styles.notifText}>
-                  <Text style={styles.notifLabel}>{item.label}</Text>
-                  <Text style={styles.notifHint}>{item.hint}</Text>
+          <EntryView intro={intro} entering={enter(2)}>
+            <Text style={styles.sectionTitle}>Notifications</Text>
+            <View style={styles.notifCard}>
+              {NOTIFICATIONS.map((item, index) => (
+                <View
+                  key={item.key}
+                  style={[styles.notifRow, index > 0 && styles.notifRowBorder]}>
+                  <View style={styles.notifText}>
+                    <Text style={styles.notifLabel}>{item.label}</Text>
+                    <Text style={styles.notifHint}>{item.hint}</Text>
+                  </View>
+                  <Switch
+                    value={notifications[item.key]}
+                    onValueChange={() => toggle(item.key)}
+                    trackColor={{ false: '#cfcfcf', true: Syft.lime }}
+                    thumbColor={Syft.white}
+                  />
                 </View>
-                <Switch
-                  value={notifications[item.key]}
-                  onValueChange={() => toggle(item.key)}
-                  trackColor={{ false: '#cfcfcf', true: Syft.lime }}
-                  thumbColor={Syft.white}
-                />
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          </EntryView>
 
           {/* Save */}
-          <Pressable
-            style={({ pressed }) => [styles.saveButton, pressed && styles.saveButtonPressed]}
-            onPress={onSave}>
-            <Text style={styles.saveButtonText}>{saved ? 'Saved!' : 'Save Changes'}</Text>
-          </Pressable>
+          <EntryView intro={intro} entering={enter(3)}>
+            <PressableScale style={styles.saveButton} onPress={onSave}>
+              <Text style={styles.saveButtonText}>{saved ? 'Saved!' : 'Save Changes'}</Text>
+            </PressableScale>
+          </EntryView>
         </ScrollView>
       </View>
     </View>
@@ -212,18 +184,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cameraBadge: {
-    position: 'absolute',
-    right: 2,
-    bottom: 2,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: Syft.darkOlive,
-    borderWidth: 3,
-    borderColor: Syft.white,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarInitial: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 46,
+    color: Syft.white,
   },
   scroll: {
     flex: 1,
@@ -293,9 +257,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
-  },
-  saveButtonPressed: {
-    opacity: 0.85,
   },
   saveButtonText: {
     fontFamily: 'Inter_700Bold',

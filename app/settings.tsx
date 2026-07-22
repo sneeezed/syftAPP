@@ -1,16 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import {
-  Inter_400Regular,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  useFonts,
-} from '@expo-google-fonts/inter';
 import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EntryText, EntryView } from '@/components/animated-entry';
+import { PressableScale } from '@/components/pressable-scale';
+import { enter } from '@/constants/motion';
 import { Syft } from '@/constants/theme';
+import { useIntro } from '@/hooks/use-intro';
+import { usePairing } from '@/hooks/use-pairing';
 
 type LinkRow = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -20,12 +20,6 @@ type LinkRow = {
   danger?: boolean;
 };
 
-const ACCOUNT_ROWS: LinkRow[] = [
-  { icon: 'person-outline', label: 'Edit Profile', route: '/profile' },
-  { icon: 'star-outline', label: 'Manage Subscription', soon: true },
-  { icon: 'add-circle-outline', label: 'Pair a Trashcan', soon: true },
-];
-
 const ABOUT_ROWS: LinkRow[] = [
   { icon: 'help-circle-outline', label: 'Help & Support', soon: true },
   { icon: 'document-text-outline', label: 'Terms & Privacy', soon: true },
@@ -34,10 +28,22 @@ const ABOUT_ROWS: LinkRow[] = [
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
+  const intro = useIntro('settings');
+  const { paired, setPaired } = usePairing();
   const [toast, setToast] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [metricUnits, setMetricUnits] = useState(true);
+
+  const accountRows: LinkRow[] = [
+    { icon: 'person-outline', label: 'Edit Profile', route: '/profile' },
+    { icon: 'time-outline', label: 'Recycling History', route: '/history' },
+    { icon: 'star-outline', label: 'Manage Subscription', soon: true },
+    {
+      icon: 'add-circle-outline',
+      label: paired ? 'Pair a new trashcan' : 'Pair a Trashcan',
+      soon: true,
+    },
+  ];
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -52,89 +58,105 @@ export default function SettingsScreen() {
     }
   };
 
-  if (!fontsLoaded) {
-    return <View style={styles.outer} />;
-  }
-
   const renderLinkRow = (row: LinkRow, index: number, total: number) => (
-    <Pressable
+    <PressableScale
       key={row.label}
-      style={({ pressed }) => [
-        styles.row,
-        index < total - 1 && styles.rowBorder,
-        pressed && styles.rowPressed,
-      ]}
+      style={[styles.row, index < total - 1 && styles.rowBorder]}
       onPress={() => onPressRow(row)}>
       <Ionicons name={row.icon} size={22} color={row.danger ? '#b3261e' : Syft.darkOlive} />
       <Text style={[styles.rowLabel, row.danger && styles.rowLabelDanger]}>{row.label}</Text>
       <Ionicons name="chevron-forward" size={20} color="#b7bda8" />
-    </Pressable>
+    </PressableScale>
   );
 
   return (
     <View style={styles.outer}>
       <View style={styles.root}>
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-          <Pressable
+          <PressableScale
             style={[styles.backButton, { top: insets.top + 10 }]}
             hitSlop={12}
             onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={26} color={Syft.white} />
-          </Pressable>
+          </PressableScale>
           <Text style={styles.headerTitle}>Settings</Text>
         </View>
 
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <View style={styles.card}>
-            {ACCOUNT_ROWS.map((r, i) => renderLinkRow(r, i, ACCOUNT_ROWS.length))}
-          </View>
-
-          <Text style={styles.sectionTitle}>Preferences</Text>
-          <View style={styles.card}>
-            <View style={[styles.row, styles.rowBorder]}>
-              <Ionicons name="moon-outline" size={22} color={Syft.darkOlive} />
-              <Text style={styles.rowLabel}>Dark mode</Text>
-              <Switch
-                value={darkMode}
-                onValueChange={setDarkMode}
-                trackColor={{ false: '#cfcfcf', true: Syft.lime }}
-                thumbColor={Syft.white}
-              />
+          <EntryView intro={intro} entering={enter(0)}>
+            <Text style={styles.sectionTitle}>Account</Text>
+            <View style={styles.card}>
+              {accountRows.map((r, i) => renderLinkRow(r, i, accountRows.length))}
             </View>
-            <View style={styles.row}>
-              <Ionicons name="speedometer-outline" size={22} color={Syft.darkOlive} />
-              <Text style={styles.rowLabel}>Use metric units (kg)</Text>
-              <Switch
-                value={metricUnits}
-                onValueChange={setMetricUnits}
-                trackColor={{ false: '#cfcfcf', true: Syft.lime }}
-                thumbColor={Syft.white}
-              />
+          </EntryView>
+
+          <EntryView intro={intro} entering={enter(1)}>
+            <Text style={styles.sectionTitle}>Preferences</Text>
+            <View style={styles.card}>
+              <View style={[styles.row, styles.rowBorder]}>
+                <Ionicons name="moon-outline" size={22} color={Syft.darkOlive} />
+                <Text style={styles.rowLabel}>Dark mode</Text>
+                <Switch
+                  value={darkMode}
+                  onValueChange={setDarkMode}
+                  trackColor={{ false: '#cfcfcf', true: Syft.lime }}
+                  thumbColor={Syft.white}
+                />
+              </View>
+              <View style={[styles.row, styles.rowBorder]}>
+                <Ionicons name="speedometer-outline" size={22} color={Syft.darkOlive} />
+                <Text style={styles.rowLabel}>Use metric units (kg)</Text>
+                <Switch
+                  value={metricUnits}
+                  onValueChange={setMetricUnits}
+                  trackColor={{ false: '#cfcfcf', true: Syft.lime }}
+                  thumbColor={Syft.white}
+                />
+              </View>
+              {/* Demo-only: flip between the paired dashboard and the pairing screen. */}
+              <View style={styles.row}>
+                <Ionicons name="hardware-chip-outline" size={22} color={Syft.darkOlive} />
+                <Text style={styles.rowLabel}>Paired with trashcan</Text>
+                <Switch
+                  value={paired}
+                  onValueChange={setPaired}
+                  trackColor={{ false: '#cfcfcf', true: Syft.lime }}
+                  thumbColor={Syft.white}
+                />
+              </View>
             </View>
-          </View>
+          </EntryView>
 
-          <Text style={styles.sectionTitle}>About</Text>
-          <View style={styles.card}>
-            {ABOUT_ROWS.map((r, i) => renderLinkRow(r, i, ABOUT_ROWS.length))}
-          </View>
+          <EntryView intro={intro} entering={enter(2)}>
+            <Text style={styles.sectionTitle}>About</Text>
+            <View style={styles.card}>
+              {ABOUT_ROWS.map((r, i) => renderLinkRow(r, i, ABOUT_ROWS.length))}
+            </View>
+          </EntryView>
 
-          <Pressable
-            style={({ pressed }) => [styles.signOut, pressed && styles.rowPressed]}
-            onPress={() => showToast('Sign out is coming soon')}>
-            <Ionicons name="log-out-outline" size={22} color="#b3261e" />
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </Pressable>
+          <EntryView intro={intro} entering={enter(3)}>
+            <PressableScale
+              style={styles.signOut}
+              onPress={() => showToast('Sign out is coming soon')}>
+              <Ionicons name="log-out-outline" size={22} color="#b3261e" />
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </PressableScale>
+          </EntryView>
 
-          <Text style={styles.version}>Syft v1.0.0</Text>
+          <EntryText intro={intro} entering={enter(4)} style={styles.version}>
+            Syft v1.0.0
+          </EntryText>
         </ScrollView>
 
         {toast && (
-          <View style={[styles.toast, { bottom: insets.bottom + 24 }]}>
+          <Animated.View
+            entering={FadeIn.duration(180)}
+            exiting={FadeOut.duration(180)}
+            style={[styles.toast, { bottom: insets.bottom + 24 }]}>
             <Text style={styles.toastText}>{toast}</Text>
-          </View>
+          </Animated.View>
         )}
       </View>
     </View>
@@ -195,9 +217,6 @@ const styles = StyleSheet.create({
   rowBorder: {
     borderBottomWidth: 1,
     borderBottomColor: '#eceee4',
-  },
-  rowPressed: {
-    opacity: 0.6,
   },
   rowLabel: {
     flex: 1,

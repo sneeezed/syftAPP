@@ -1,16 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import {
-  Inter_400Regular,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  useFonts,
-} from '@expo-google-fonts/inter';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EntryView } from '@/components/animated-entry';
+import { PressableScale } from '@/components/pressable-scale';
+import { enter } from '@/constants/motion';
 import { Syft } from '@/constants/theme';
+import { useIntro } from '@/hooks/use-intro';
 
 const leafIcon = require('@/assets/images/leaf.png');
 const achievementIcon = require('@/assets/images/achievement.png');
@@ -31,22 +29,18 @@ const HISTORY = [
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
-
-  if (!fontsLoaded) {
-    return <View style={styles.outer} />;
-  }
+  const intro = useIntro('history');
 
   return (
     <View style={styles.outer}>
       <View style={styles.root}>
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-          <Pressable
+          <PressableScale
             style={[styles.backButton, { top: insets.top + 10 }]}
             hitSlop={12}
             onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={26} color={Syft.white} />
-          </Pressable>
+          </PressableScale>
           <Text style={styles.headerTitle}>Recycling History</Text>
         </View>
 
@@ -56,7 +50,7 @@ export default function HistoryScreen() {
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            <View style={styles.statsRow}>
+            <EntryView intro={intro} entering={enter(0)} style={styles.statsRow}>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>240</Text>
                 <Text style={styles.statLabel}>Items recycled</Text>
@@ -65,10 +59,10 @@ export default function HistoryScreen() {
                 <Text style={styles.statNumber}>100 lbs</Text>
                 <Text style={styles.statLabel}>Saved this month</Text>
               </View>
-            </View>
+            </EntryView>
           }
-          renderItem={({ item }) => (
-            <View style={styles.row}>
+          renderItem={({ item, index }) => (
+            <EntryView intro={intro} entering={enter(Math.min(index + 1, 8))} style={styles.row}>
               <View style={styles.iconCircle}>
                 <Image source={item.icon} style={styles.icon} contentFit="contain" />
               </View>
@@ -77,7 +71,7 @@ export default function HistoryScreen() {
                 <Text style={styles.rowDetail}>{item.detail}</Text>
               </View>
               <Text style={styles.rowTime}>{item.time}</Text>
-            </View>
+            </EntryView>
           )}
         />
       </View>
