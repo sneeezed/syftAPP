@@ -7,7 +7,13 @@ import {
   type ReactNode,
 } from 'react';
 
-import { DEFAULT_DEVICE_URL, LOCATIONS, normalizeDeviceUrl } from '@/constants/syft';
+import {
+  DEFAULT_DEVICE_URL,
+  LOCATIONS,
+  normalizeDeviceUrl,
+  type SortedItem,
+  type SyftStats,
+} from '@/constants/syft';
 
 type SyftContextValue = {
   /** Base URL of the paired Pi, e.g. http://raspberrypi.local:8000 */
@@ -19,6 +25,12 @@ type SyftContextValue = {
   location: string | null;
   /** Locations the Pi offers (from GET /config). */
   available: string[];
+  /** Running totals from the Pi (GET /stats). */
+  stats: SyftStats | null;
+  /** Most-recent sorted items for the activity feed (GET /history). */
+  recent: SortedItem[];
+  /** Re-fetch stats + recent history from the Pi. */
+  refresh: () => Promise<void>;
   /** Ping the Pi at `url` (or the stored deviceUrl) and load its config. */
   connect: (url?: string) => Promise<boolean>;
   /** Push a new recycling location to the Pi (POST /config). */
@@ -57,6 +69,22 @@ export function SyftProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [location, setLocation] = useState<string | null>(null);
   const [available, setAvailable] = useState<string[]>([...LOCATIONS]);
+  const [stats, setStats] = useState<SyftStats | null>(null);
+  const [recent, setRecent] = useState<SortedItem[]>([]);
+
+  // Pull the latest totals + activity feed. Best-effort; leaves prior data on error.
+  const refresh = useCallback(async () => {
+    try {
+      const [s, h] = await Promise.all([
+        fetchJson(`${deviceUrl}/stats`),
+        fetchJson(`${deviceUrl}/history?limit=50`),
+      ]);
+      setStats(s as SyftStats);
+      setRecent(Array.isArray(h?.items) ? (h.items as SortedItem[]) : []);
+    } catch {
+      // keep whatever we last had
+    }
+  }, [deviceUrl]);
 
   const connect = useCallback(
     async (url?: string) => {
@@ -141,6 +169,9 @@ export function SyftProvider({ children }: { children: ReactNode }) {
       error,
       location,
       available,
+      stats,
+      recent,
+      refresh,
       connect,
       changeLocation,
       pair,
@@ -154,6 +185,9 @@ export function SyftProvider({ children }: { children: ReactNode }) {
       error,
       location,
       available,
+      stats,
+      recent,
+      refresh,
       connect,
       changeLocation,
       pair,

@@ -1,35 +1,40 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EntryView } from '@/components/animated-entry';
 import { PressableScale } from '@/components/pressable-scale';
 import { enter } from '@/constants/motion';
+import { bucketVerb, itemTitle, relativeTime, type Bucket } from '@/constants/syft';
 import { Syft } from '@/constants/theme';
 import { useIntro } from '@/hooks/use-intro';
+import { useSyft } from '@/hooks/use-syft';
 
-const leafIcon = require('@/assets/images/leaf.png');
-const achievementIcon = require('@/assets/images/achievement.png');
-const trashcanIcon = require('@/assets/images/trashcan.png');
+const BUCKET_ICON: Record<Bucket, keyof typeof Ionicons.glyphMap> = {
+  recycle: 'leaf',
+  trash: 'trash',
+  ewaste: 'warning',
+};
 
-// Mock history — replaced with real sorting data later.
-const HISTORY = [
-  { id: '1', icon: leafIcon, title: 'Can Recycled', detail: 'Aluminum can', time: '5 min ago' },
-  { id: '2', icon: leafIcon, title: 'Bottle Recycled', detail: 'Plastic bottle', time: '22 min ago' },
-  { id: '3', icon: achievementIcon, title: 'Achievement Unlocked', detail: 'Saved 100 lbs', time: 'Yesterday 10:01 AM' },
-  { id: '4', icon: trashcanIcon, title: 'Waste Sorted', detail: 'Food wrapper → Trash', time: 'Yesterday 9:14 AM' },
-  { id: '5', icon: leafIcon, title: 'Paper Recycled', detail: 'Cardboard box', time: 'Wednesday 6:40 PM' },
-  { id: '6', icon: trashcanIcon, title: 'Waste Emptied', detail: 'Bin emptied', time: 'Wednesday 8:20 PM' },
-  { id: '7', icon: leafIcon, title: 'Glass Recycled', detail: 'Glass jar', time: 'Tuesday 1:12 PM' },
-  { id: '8', icon: achievementIcon, title: 'Streak Extended', detail: '7 days recycling', time: 'Monday 8:00 AM' },
-];
+const BUCKET_COLOR: Record<Bucket, string> = {
+  recycle: Syft.lime,
+  trash: Syft.darkOlive,
+  ewaste: '#b3261e',
+};
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const intro = useIntro('history');
+  const { stats, recent, refresh } = useSyft();
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
 
   return (
     <View style={styles.outer}>
@@ -45,32 +50,42 @@ export default function HistoryScreen() {
         </View>
 
         <FlatList
-          data={HISTORY}
-          keyExtractor={(item) => item.id}
+          data={recent}
+          keyExtractor={(item, index) => `${item.ts}-${index}`}
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <EntryView intro={intro} entering={enter(0)} style={styles.statsRow}>
               <View style={styles.statCard}>
-                <Text style={styles.statNumber}>240</Text>
+                <Text style={styles.statNumber}>{stats?.recycled_items ?? 0}</Text>
                 <Text style={styles.statLabel}>Items recycled</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statNumber}>100 lbs</Text>
-                <Text style={styles.statLabel}>Saved this month</Text>
+                <Text style={styles.statNumber}>{(stats?.recycled_weight_lbs ?? 0).toFixed(1)} lbs</Text>
+                <Text style={styles.statLabel}>Diverted from landfill</Text>
               </View>
+            </EntryView>
+          }
+          ListEmptyComponent={
+            <EntryView intro={intro} entering={enter(1)} style={styles.empty}>
+              <Ionicons name="sparkles-outline" size={30} color={Syft.lime} />
+              <Text style={styles.emptyTitle}>No sorting history yet</Text>
+              <Text style={styles.emptySub}>Items your Syft sorts will show up here.</Text>
             </EntryView>
           }
           renderItem={({ item, index }) => (
             <EntryView intro={intro} entering={enter(Math.min(index + 1, 8))} style={styles.row}>
-              <View style={styles.iconCircle}>
-                <Image source={item.icon} style={styles.icon} contentFit="contain" />
+              <View style={[styles.iconCircle, { backgroundColor: BUCKET_COLOR[item.bucket] }]}>
+                <Ionicons name={BUCKET_ICON[item.bucket]} size={22} color={Syft.white} />
               </View>
               <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>{item.title}</Text>
-                <Text style={styles.rowDetail}>{item.detail}</Text>
+                <Text style={styles.rowTitle}>{itemTitle(item.item)}</Text>
+                <Text style={styles.rowDetail}>
+                  {bucketVerb(item.bucket)}
+                  {item.weight_g ? ` · ~${(item.weight_g / 453.592).toFixed(2)} lb` : ''}
+                </Text>
               </View>
-              <Text style={styles.rowTime}>{item.time}</Text>
+              <Text style={styles.rowTime}>{relativeTime(item.ts)}</Text>
             </EntryView>
           )}
         />
@@ -173,5 +188,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#9aa08a',
     marginLeft: 8,
+  },
+  empty: {
+    alignItems: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+  },
+  emptyTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 16,
+    color: Syft.brown,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  emptySub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    color: '#8a8f7a',
+    textAlign: 'center',
+    lineHeight: 19,
   },
 });

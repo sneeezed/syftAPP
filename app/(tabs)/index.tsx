@@ -1,45 +1,30 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EntryText, EntryView } from '@/components/animated-entry';
 import { PressableScale } from '@/components/pressable-scale';
 import { enter, pop } from '@/constants/motion';
+import { bucketVerb, itemTitle, relativeTime, type Bucket } from '@/constants/syft';
 import { Syft } from '@/constants/theme';
 import { useIntro } from '@/hooks/use-intro';
 import { usePairing } from '@/hooks/use-pairing';
+import { useSyft } from '@/hooks/use-syft';
 
 const backgroundImage = require('@/assets/images/background.png');
-const leafIcon = require('@/assets/images/leaf.png');
-const achievementIcon = require('@/assets/images/achievement.png');
 const trashcanIcon = require('@/assets/images/trashcan.png');
 
-// Mock data — swapped for real trashcan data later.
+// TODO: wire to the signed-in user; hardcoded for the demo.
 const userName = 'Hannah';
 
-const stats = {
-  itemsSorted: 240,
+const BUCKET_ICON: Record<Bucket, keyof typeof Ionicons.glyphMap> = {
+  recycle: 'leaf',
+  trash: 'trash',
+  ewaste: 'warning',
 };
-
-const activity = [
-  {
-    icon: leafIcon,
-    title: 'Can Recycled',
-    subtitle: 'Aluminum can — 5 min ago',
-  },
-  {
-    icon: achievementIcon,
-    title: 'Achievement Unlocked',
-    subtitle: 'Saved 100 lbs — Yesterday 10:01 AM',
-  },
-  {
-    icon: trashcanIcon,
-    title: 'Waste Sorted',
-    subtitle: 'Food wrapper → Trash — Yesterday 9:14 AM',
-  },
-];
 
 export default function HomeScreen() {
   const { paired } = usePairing();
@@ -99,12 +84,23 @@ function UnpairedHome() {
 function PairedHome() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { stats, recent, refresh } = useSyft();
+
+  // Pull fresh data whenever Home is focused, and keep it live while it's open.
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+      const id = setInterval(refresh, 4000);
+      return () => clearInterval(id);
+    }, [refresh]),
+  );
 
   // Play the entrance cascade only on the first open after a cold launch — not
   // every time we return to Home (e.g. dismissing the menu that sits over it).
   const intro = useIntro('home');
 
   const initial = (userName.trim()[0] ?? 'S').toUpperCase();
+  const feed = recent.slice(0, 6);
 
   return (
     <View style={styles.outer}>
@@ -144,34 +140,46 @@ function PairedHome() {
               Welcome Back {userName}!
             </EntryText>
 
-            {/* Hero stat — items sorted this month */}
+            {/* Hero stat — items sorted so far */}
             <EntryView intro={intro} entering={enter(1)} style={styles.heroCard}>
-              <Text style={styles.heroNumber}>{stats.itemsSorted}</Text>
-              <Text style={styles.heroLabel}>items sorted for you this month</Text>
+              <Text style={styles.heroNumber}>{stats?.total_items ?? 0}</Text>
+              <Text style={styles.heroLabel}>items sorted for you so far</Text>
             </EntryView>
 
             {/* Recently Sorted */}
             <EntryText intro={intro} entering={enter(2)} style={styles.sectionTitle}>
               Recently Sorted
             </EntryText>
-            <View style={styles.activityCard}>
-              {activity.map((item, index) => (
-                <EntryView key={item.title} intro={intro} entering={enter(3 + index)}>
-                  <PressableScale
-                    onPress={() => router.push('/history')}
-                    style={[styles.activityRow, index > 0 && styles.activityRowBorder]}>
-                    <View style={styles.activityIconCircle}>
-                      <Image source={item.icon} style={styles.activityIcon} contentFit="contain" />
-                    </View>
-                    <View style={styles.activityText}>
-                      <Text style={styles.activityTitle}>{item.title}</Text>
-                      <Text style={styles.activitySubtitle}>{item.subtitle}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={Syft.white} />
-                  </PressableScale>
-                </EntryView>
-              ))}
-            </View>
+            {feed.length === 0 ? (
+              <EntryView intro={intro} entering={enter(3)} style={styles.emptyCard}>
+                <View style={styles.emptyIconCircle}>
+                  <Ionicons name="sparkles-outline" size={26} color={Syft.white} />
+                </View>
+                <Text style={styles.emptyTitle}>Nothing sorted yet</Text>
+                <Text style={styles.emptySub}>Drop something into your Syft — it’ll show up here.</Text>
+              </EntryView>
+            ) : (
+              <View style={styles.activityCard}>
+                {feed.map((item, index) => (
+                  <EntryView key={`${item.ts}-${index}`} intro={intro} entering={enter(3 + index)}>
+                    <PressableScale
+                      onPress={() => router.push('/history')}
+                      style={[styles.activityRow, index > 0 && styles.activityRowBorder]}>
+                      <View style={styles.activityIconCircle}>
+                        <Ionicons name={BUCKET_ICON[item.bucket]} size={24} color={Syft.white} />
+                      </View>
+                      <View style={styles.activityText}>
+                        <Text style={styles.activityTitle}>{itemTitle(item.item)}</Text>
+                        <Text style={styles.activitySubtitle}>
+                          {bucketVerb(item.bucket)} · {relativeTime(item.ts)}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color={Syft.white} />
+                    </PressableScale>
+                  </EntryView>
+                ))}
+              </View>
+            )}
           </View>
         </ScrollView>
       </View>
@@ -315,6 +323,36 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
     fontFamily: 'Inter_400Regular',
     lineHeight: 16,
+  },
+  // Recently-sorted empty state
+  emptyCard: {
+    backgroundColor: Syft.darkOlive,
+    borderRadius: 18,
+    paddingVertical: 30,
+    paddingHorizontal: 22,
+    alignItems: 'center',
+  },
+  emptyIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Syft.lime,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 16,
+    color: Syft.white,
+    marginBottom: 4,
+  },
+  emptySub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center',
+    lineHeight: 19,
   },
   // Unpaired empty state
   unpairedContent: {

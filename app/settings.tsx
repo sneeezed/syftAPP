@@ -30,7 +30,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const intro = useIntro('settings');
-  const { paired, setPaired } = usePairing();
+  const { paired } = usePairing();
   const { location } = useSyft();
   const [toast, setToast] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(false);
@@ -112,23 +112,12 @@ export default function SettingsScreen() {
                   thumbColor={Syft.white}
                 />
               </View>
-              <View style={[styles.row, styles.rowBorder]}>
+              <View style={styles.row}>
                 <Ionicons name="speedometer-outline" size={22} color={Syft.darkOlive} />
                 <Text style={styles.rowLabel}>Use metric units (kg)</Text>
                 <Switch
                   value={metricUnits}
                   onValueChange={setMetricUnits}
-                  trackColor={{ false: '#cfcfcf', true: Syft.lime }}
-                  thumbColor={Syft.white}
-                />
-              </View>
-              {/* Demo-only: flip between the paired dashboard and the pairing screen. */}
-              <View style={styles.row}>
-                <Ionicons name="hardware-chip-outline" size={22} color={Syft.darkOlive} />
-                <Text style={styles.rowLabel}>Paired with trashcan</Text>
-                <Switch
-                  value={paired}
-                  onValueChange={setPaired}
                   trackColor={{ false: '#cfcfcf', true: Syft.lime }}
                   thumbColor={Syft.white}
                 />
