@@ -23,6 +23,10 @@ type SyftContextValue = {
   connect: (url?: string) => Promise<boolean>;
   /** Push a new recycling location to the Pi (POST /config). */
   changeLocation: (location: string) => Promise<boolean>;
+  /** Tell the Pi it's paired — its screen switches to the sorting demo. */
+  pair: () => Promise<boolean>;
+  /** Tell the Pi it's unpaired — its screen shows "waiting to be paired" + address. */
+  unpair: () => Promise<boolean>;
   disconnect: () => void;
 };
 
@@ -106,6 +110,24 @@ export function SyftProvider({ children }: { children: ReactNode }) {
     [deviceUrl],
   );
 
+  // Flip the Pi's own screen between the sorting demo (paired) and the
+  // "waiting to be paired" prompt (unpaired). Best-effort — the Pi being
+  // momentarily unreachable shouldn't block the app's own paired state.
+  const setDevicePaired = useCallback(
+    async (next: boolean) => {
+      try {
+        await fetchJson(`${deviceUrl}/${next ? 'pair' : 'unpair'}`, { method: 'POST' });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [deviceUrl],
+  );
+
+  const pair = useCallback(() => setDevicePaired(true), [setDevicePaired]);
+  const unpair = useCallback(() => setDevicePaired(false), [setDevicePaired]);
+
   const disconnect = useCallback(() => {
     setConnected(false);
     setLocation(null);
@@ -121,9 +143,23 @@ export function SyftProvider({ children }: { children: ReactNode }) {
       available,
       connect,
       changeLocation,
+      pair,
+      unpair,
       disconnect,
     }),
-    [deviceUrl, connected, connecting, error, location, available, connect, changeLocation, disconnect],
+    [
+      deviceUrl,
+      connected,
+      connecting,
+      error,
+      location,
+      available,
+      connect,
+      changeLocation,
+      pair,
+      unpair,
+      disconnect,
+    ],
   );
 
   return <SyftContext.Provider value={value}>{children}</SyftContext.Provider>;

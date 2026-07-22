@@ -20,12 +20,28 @@ export default function PairScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { setPaired } = usePairing();
-  const { deviceUrl, connected, connecting, error, location, available, connect, changeLocation } =
+  const { deviceUrl, connected, connecting, error, location, available, connect, changeLocation, pair, unpair } =
     useSyft();
   const [address, setAddress] = useState(deviceUrl);
 
-  const onFinish = () => {
+  // Reconnecting: drop the Pi to its "waiting" screen first, then re-establish,
+  // so the handshake is visible on the trashcan's display.
+  const onConnect = async () => {
+    if (connected) {
+      await unpair();
+    }
+    await connect(address);
+  };
+
+  const onFinish = async () => {
+    await pair(); // the Pi's screen switches to the sorting demo
     setPaired(true);
+    router.back();
+  };
+
+  const onUnpair = async () => {
+    await unpair(); // the Pi's screen shows "waiting to be paired" + its address
+    setPaired(false);
     router.back();
   };
 
@@ -68,7 +84,7 @@ export default function PairScreen() {
 
             <PressableScale
               style={[styles.button, connected && styles.buttonDone]}
-              onPress={() => connect(address)}
+              onPress={onConnect}
               disabled={connecting}>
               {connecting ? (
                 <ActivityIndicator color={Syft.white} />
@@ -129,6 +145,13 @@ export default function PairScreen() {
             onPress={onFinish}>
             <Text style={styles.finishText}>Finish setup</Text>
           </PressableScale>
+
+          {connected && (
+            <PressableScale style={styles.unpair} onPress={onUnpair}>
+              <Ionicons name="unlink-outline" size={20} color="#b3261e" />
+              <Text style={styles.unpairText}>Unpair this trashcan</Text>
+            </PressableScale>
+          )}
         </ScrollView>
       </View>
     </View>
@@ -286,5 +309,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     fontSize: 16,
     color: Syft.white,
+  },
+  unpair: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 14,
+    paddingVertical: 14,
+  },
+  unpairText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 14,
+    color: '#b3261e',
   },
 });
